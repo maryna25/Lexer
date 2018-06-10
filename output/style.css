@@ -1,0 +1,39 @@
+body {
+    white-space: pre;
+    font-size: 12pt;
+}
+p {
+    display: inline;
+}
+
+.IDENTIFIER {
+    color: #e6e600;
+}
+
+.KEYWORD {
+    color: #ff9966;
+}
+
+.PUNCTUATION {
+    color: #cce6ff;
+}
+
+.COMMENT {
+    color: #8585ad;
+}
+
+.ERROR {
+    color: #e60000;
+}
+
+.OPERATOR {
+    color: #66b3ff;
+}
+
+.LITERAL {
+    color: #006600;
+}
+
+.NUMBER {
+    color: #600080;
+}

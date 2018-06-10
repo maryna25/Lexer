@@ -1,0 +1,13 @@
+10.5+5;
+class A {
+}
+'c';
+'\n';
+'fr';
+"check";
+true;
+a += 1;
+a < b;
+/* ejkfhje* sdefrf
+*/
+2.3.3;
