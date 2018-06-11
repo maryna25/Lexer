@@ -2,7 +2,6 @@ import java.io.*;
 import java.util.ArrayList;
 
 // numbers like 1.
-// eof
 // <<, <<<
 
 public class Lexer {
@@ -24,7 +23,7 @@ public class Lexer {
 
             br.close();
             fileEnded = true;
-            analyzeChar('\n');
+            analyzeChar('\n'); // TODO: remove
             tokens.remove(tokens.size() - 1);
 
         } catch (IOException e) {
@@ -141,6 +140,7 @@ public class Lexer {
                     }
                     else if (fileEnded) {
                         tokens.add(new Token(Type.ERROR, buffer));
+                        tokens.add(new Token(Type.PUNCTUATION, "\n")); // TODO: remove after
                     }
                     analyzed = true;
                 }
@@ -201,6 +201,9 @@ public class Lexer {
                     if (character == '\'') {
                         tokens.add(new Token(Type.LITERAL, buffer + Character.toString(character)));
                         setStart();
+                    } else if (fileEnded) {
+                        tokens.add(new Token(Type.ERROR, buffer));
+                        tokens.add(new Token(Type.PUNCTUATION, "\n")); // TODO: remove after
                     } else {
                         curState = State.ERR_COMM;
                     }
@@ -258,6 +261,9 @@ public class Lexer {
                     } else if (character == '\"') {
                         tokens.add(new Token(Type.LITERAL, buffer + Character.toString(character)));
                         setStart();
+                        analyzed = true;
+                    } else if (fileEnded) {
+                        tokens.add(new Token(Type.ERROR, buffer));
                         analyzed = true;
                     } else
                         analyzed = true;
