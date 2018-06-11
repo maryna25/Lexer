@@ -52,8 +52,10 @@ public class Lexer {
                         curState = State.IDENTIFIER;
                     else if (character == '0')
                         curState = State.ZERO;
-                    else if (character == '?' || character == ':')
-                        curState = State.OPERATOR;
+                    else if (character == '?' || character == ':') {
+                        tokens.add(new Token(Type.OPERATOR, Character.toString(character)));
+                        setStart();
+                    }
                     else if (character == '/')
                         curState = State.COMMENT;
                     else if (character == '+' || character == '&' || character == '|')
@@ -88,7 +90,8 @@ public class Lexer {
 
                 case DOUBLE_ASSIGN: {
                     if (character == '=') {
-                        curState = State.OPERATOR;
+                        tokens.add(new Token(Type.OPERATOR, buffer + Character.toString(character)));
+                        setStart();
                         analyzed = true;
                     }
                     else {
@@ -99,20 +102,14 @@ public class Lexer {
                 }
                 break;
 
-                case OPERATOR: {
-                    tokens.add(new Token(Type.OPERATOR, buffer.isEmpty() ? Character.toString(character) : buffer));
-                    setStart();
-                    analyzed = false;
-                }
-                break;
-
                 case COMMENT: {
                     if (character == '/') {
                         curState = State.ONE_LINE_COMMENT;
                         analyzed = true;
                     }
                     else if (character == '=') {
-                        curState = State.OPERATOR;
+                        tokens.add(new Token(Type.OPERATOR, buffer + Character.toString(character)));
+                        setStart();
                         analyzed = true;
                     }
                     else if (character == '*') {
@@ -149,16 +146,10 @@ public class Lexer {
                 }
                 break;
 
-                case END_COMMENT: {
-                    tokens.add(new Token(Type.COMMENT, buffer));
-                    setStart();
-                    analyzed = false;
-                }
-                break;
-
                 case MULTI_LINE_COMMENT_STAR: {
                     if (character == '/') {
-                        curState = State.END_COMMENT;
+                        tokens.add(new Token(Type.COMMENT, buffer + Character.toString(character)));
+                        setStart();
                     } else {
                         curState = State.MULTI_LINE_COMMENT;
                     }
@@ -168,7 +159,8 @@ public class Lexer {
 
                 case OPER_FIRST_SYM: {
                     if (character == '=' || Character.toString(character).equals(buffer)) {
-                        curState = State.OPERATOR;
+                        tokens.add(new Token(Type.OPERATOR, buffer + Character.toString(character)));
+                        setStart();
                         analyzed = true;
                     }
                     else {
@@ -207,7 +199,8 @@ public class Lexer {
 
                 case END_CHAR_LIT: {
                     if (character == '\'') {
-                        curState = State.LITERAL;
+                        tokens.add(new Token(Type.LITERAL, buffer + Character.toString(character)));
+                        setStart();
                     } else {
                         curState = State.ERR_COMM;
                     }
@@ -263,23 +256,18 @@ public class Lexer {
                         curState = State.STRING_LIT_SYM;
                         analyzed = true;
                     } else if (character == '\"') {
-                        curState = State.LITERAL;
+                        tokens.add(new Token(Type.LITERAL, buffer + Character.toString(character)));
+                        setStart();
                         analyzed = true;
                     } else
                         analyzed = true;
                 }
                 break;
 
-                case LITERAL: {
-                    tokens.add(new Token(Type.LITERAL, buffer));
-                    setStart();
-                    analyzed = false;
-                }
-                break;
-
                 case MINUS: {
                     if (character == '=' || character == '-' || character == '>') {
-                        curState = State.OPERATOR;
+                        tokens.add(new Token(Type.OPERATOR, buffer + Character.toString(character)));
+                        setStart();
                         analyzed = true;
                     }
                     else if (character >= '1' && character <= '9') {
