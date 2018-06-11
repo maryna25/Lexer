@@ -12,9 +12,10 @@ a < b;
 /* ejkfhje* sdefrf
 */
 //hfhfhhfh
-2. .3;
 44er_9080?!
 a /= b
 a != b
 :
+double a = 1.;
+1.1.1
 /*jhsd

@@ -5,7 +5,6 @@ public enum State {
     ERROR,
     ERR_COMM,
     NUMBER_D,
-    DOT_ERR,
     NUMBER,
     DOUBLE_ASSIGN,
     DOT,

@@ -1,7 +1,6 @@
 import java.io.*;
 import java.util.ArrayList;
 
-// numbers like 1.
 // <<, <<<
 
 public class Lexer {
@@ -30,11 +29,6 @@ public class Lexer {
             e.printStackTrace();
         }
     }
-
-    public ArrayList<Token> getTokens(){
-        return  tokens;
-    }
-
 
     public void analyzeChar(Character character){
         boolean analyzed = false;
@@ -337,12 +331,14 @@ public class Lexer {
                 break;
 
                 case NUMBER_D: {
-                    if (character >= '0' && character <= '9')
+                    if (character >= '0' && character <= '9') {
                         curState = State.NUMBER_DOT;
-                    else {
-                        curState = State.DOT_ERR;
+                        analyzed = true;
                     }
-                    analyzed = true;
+                    else {
+                        checkNumber(character);
+                        analyzed = false;
+                    }
                 }
                 break;
 
@@ -352,16 +348,6 @@ public class Lexer {
                         analyzed = false;
                     }
                     else
-                        analyzed = true;
-                }
-                break;
-
-                case DOT_ERR: {
-                    if (character == ' ' || character == '\n') {
-                        tokens.add(new Token(Type.ERROR, buffer));
-                        setStart();
-                        analyzed = false;
-                    } else
                         analyzed = true;
                 }
                 break;
@@ -416,7 +402,6 @@ public class Lexer {
         }
         else {
             curState = State.ERROR;
-            buffer+=character;
         }
 
     }
