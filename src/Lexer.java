@@ -1,6 +1,10 @@
 import java.io.*;
 import java.util.ArrayList;
 
+// numbers like 1.
+// eof
+// <<, <<<
+
 public class Lexer {
 
     ArrayList<Token> tokens = new ArrayList<>();
@@ -34,344 +38,371 @@ public class Lexer {
 
 
     public void analyzeChar(Character character){
+        boolean analyzed = false;
+        while (!analyzed) {
+            switch (curState) {
+                case START: {
+                    if (character == '!' || character == '%' || character == '=' || character == '*' || character == '>' || character == '<')
+                        curState = State.DOUBLE_ASSIGN;
+                    else if (character >= '1' && character <= '9')
+                        curState = State.NUMBER;
+                    else if (character == '.')
+                        curState = State.DOT;
+                    else if ((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || character == '_')
+                        curState = State.IDENTIFIER;
+                    else if (character == '0')
+                        curState = State.ZERO;
+                    else if (character == '?' || character == ':')
+                        curState = State.OPERATOR;
+                    else if (character == '/')
+                        curState = State.COMMENT;
+                    else if (character == '+' || character == '&' || character == '|')
+                        curState = State.OPER_FIRST_SYM;
+                    else if (character == '-')
+                        curState = State.MINUS;
+                    else if (character == '\'')
+                        curState = State.CHAR_LIT;
+                    else if (character == '\"')
+                        curState = State.STRING_LIT;
+                    else
+                        checkTerminateSymbol(character);
+                    analyzed = true;
+                }
+                break;
 
-        switch (curState){
-            case START:{
-                if(character == '!' || character == '%' || character == '=' || character == '*' || character == '>' || character == '<')
-                    curState = State.DOUBLE_ASSIGN;
-                else if(character >= '1' && character <= '9')
-                    curState = State.NUMBER;
-                else if(character == '.')
-                    curState = State.DOT;
-                else if((character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') || character == '_')
-                    curState = State.IDENTIFIER;
-                else if(character == '0')
-                    curState = State.ZERO;
-                else if(character == '?' || character == ':')
-                    curState = State.OPERATOR;
-                else if(character == '/')
-                    curState = State.COMMENT;
-                else if(character == '+' || character == '&' || character == '|')
-                    curState = State.OPER_FIRST_SYM;
-                else if(character == '-')
-                    curState = State.MINUS;
-                else if(character == '\'')
-                    curState = State.CHAR_LIT;
-                else if(character == '\"')
-                    curState = State.STRING_LIT;
-                else
-                    checkTerminateSymbol(character);
-            }
-            break;
+                case IDENTIFIER: {
+                    if (!((character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') || (character >= 'A' && character <= 'Z') || character == '_')) {
+                        if (Patterns.isPunctuation(character) || character == '.') {
+                            tokens.add(new Token(Type.IDENTIFIER, buffer));
+                            setStart();
+                            analyzed = false;
+                        } else {
+                            tokens.add(new Token(Type.ERROR, buffer));
+                            setStart();
+                            analyzed = true;
+                        }
+                    } else
+                        analyzed = true;
+                }
+                break;
 
-            case IDENTIFIER:{
-                if(!((character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') || (character >= 'A' && character <= 'Z') || character == '_')) {
-                    if(Patterns.isPunctuation(character) || character == '.') {
-                        tokens.add(new Token(Type.IDENTIFIER, buffer));
-                        setStart();
-                        analyzeChar(character);
-                        return;
+                case DOUBLE_ASSIGN: {
+                    if (character == '=') {
+                        curState = State.OPERATOR;
+                        analyzed = true;
                     }
                     else {
-                        tokens.add(new Token(Type.ERROR, buffer));
+                        tokens.add(new Token(Type.OPERATOR, buffer));
                         setStart();
+                        analyzed = false;
                     }
                 }
-            }
-            break;
+                break;
 
-            case DOUBLE_ASSIGN:{
-                if(character == '=')
-                    curState = State.OPERATOR;
-                else {
-                    tokens.add(new Token(Type.OPERATOR, buffer));
+                case OPERATOR: {
+                    tokens.add(new Token(Type.OPERATOR, buffer.isEmpty() ? Character.toString(character) : buffer));
                     setStart();
-                    analyzeChar(character);
-                    return;
+                    analyzed = false;
                 }
-            }
-            break;
+                break;
 
-            case OPERATOR:{
-                tokens.add(new Token(Type.OPERATOR, buffer.isEmpty()?Character.toString(character):buffer));
-                setStart();
-                analyzeChar(character);
-                return;
-            }
-
-            case COMMENT:{
-                if(character == '/')
-                    curState = State.ONE_LINE_COMMENT;
-                else if(character == '=')
-                    curState = State.OPERATOR;
-                else if(character == '*')
-                    curState = State.MULTI_LINE_COMMENT;
-                else {
-                    tokens.add(new Token(Type.OPERATOR, buffer));
-                    setStart();
-                    analyzeChar(character);
-                    return;
+                case COMMENT: {
+                    if (character == '/') {
+                        curState = State.ONE_LINE_COMMENT;
+                        analyzed = true;
+                    }
+                    else if (character == '=') {
+                        curState = State.OPERATOR;
+                        analyzed = true;
+                    }
+                    else if (character == '*') {
+                        curState = State.MULTI_LINE_COMMENT;
+                        analyzed = true;
+                    }
+                    else {
+                        tokens.add(new Token(Type.OPERATOR, buffer));
+                        setStart();
+                        analyzed = false;
+                    }
                 }
-            }
-            break;
+                break;
 
-            case ONE_LINE_COMMENT:{
-                if(character == '\r' || character == '\n') {
+                case ONE_LINE_COMMENT: {
+                    if (character == '\r' || character == '\n') {
+                        tokens.add(new Token(Type.COMMENT, buffer));
+                        setStart();
+                        analyzed = false;
+                    }
+                    else
+                        analyzed = true;
+                }
+                break;
+
+                case MULTI_LINE_COMMENT: {
+                    if (character == '*') {
+                        curState = State.MULTI_LINE_COMMENT_STAR;
+                    }
+                    else if (fileEnded) {
+                        tokens.add(new Token(Type.ERROR, buffer));
+                    }
+                    analyzed = true;
+                }
+                break;
+
+                case END_COMMENT: {
                     tokens.add(new Token(Type.COMMENT, buffer));
                     setStart();
-                    analyzeChar(character);
-                    return;
+                    analyzed = false;
                 }
-            }
-            break;
+                break;
 
-            case MULTI_LINE_COMMENT:{
-                if(character == '*')
-                    curState = State.MULTI_LINE_COMMENT_STAR;
-                else if(fileEnded){
-                    tokens.add(new Token(Type.ERROR, buffer));
-                    return;
+                case MULTI_LINE_COMMENT_STAR: {
+                    if (character == '/') {
+                        curState = State.END_COMMENT;
+                    } else {
+                        curState = State.MULTI_LINE_COMMENT;
+                    }
+                    analyzed = true;
                 }
-            }
-            break;
+                break;
 
-            case END_COMMENT:{
-                tokens.add(new Token(Type.COMMENT, buffer));
-                setStart();
-                analyzeChar(character);
-                return;
-            }
-
-            case MULTI_LINE_COMMENT_STAR:{
-                if(character == '/'){
-                    curState = State.END_COMMENT;
+                case OPER_FIRST_SYM: {
+                    if (character == '=' || Character.toString(character).equals(buffer)) {
+                        curState = State.OPERATOR;
+                        analyzed = true;
+                    }
+                    else {
+                        tokens.add(new Token(Type.OPERATOR, buffer));
+                        setStart();
+                        analyzed = false;
+                    }
                 }
-                else{
-                    curState = State.MULTI_LINE_COMMENT;
-                }
-            }
-            break;
+                break;
 
-            case OPER_FIRST_SYM:{
-                if(character == '=' || Character.toString(character).equals(buffer))
-                    curState = State.OPERATOR;
-                else{
-                    tokens.add(new Token(Type.OPERATOR, buffer));
+                case CHAR_LIT: {
+                    if (character == '\\') {
+                        curState = State.CHAR_T;
+                        analyzed = true;
+                    } else if (character == '\n' || character == '\'') {
+                        tokens.add(new Token(Type.ERROR, buffer));
+                        setStart();
+                        analyzed = false;
+                    } else {
+                        curState = State.END_CHAR_LIT;
+                        analyzed = true;
+                    }
+
+                }
+                break;
+
+                case CHAR_T: {
+                    if (character == 'n' || character == 't' || character == '\\' || character == '\'' || character == '\"') {
+                        curState = State.END_CHAR_LIT;
+                    } else {
+                        curState = State.ERR_COMM;
+                    }
+                    analyzed = true;
+                }
+                break;
+
+                case END_CHAR_LIT: {
+                    if (character == '\'') {
+                        curState = State.LITERAL;
+                    } else {
+                        curState = State.ERR_COMM;
+                    }
+                    analyzed = true;
+                }
+                break;
+
+                case ERR_COMM: {
+                    if (character == '\n') {
+                        tokens.add(new Token(Type.ERROR, buffer));
+                        setStart();
+                        analyzed = false;
+                    }
+                    else
+                        analyzed = true;
+                }
+                break;
+
+                case STRING_LIT: {
+                    if (character == '\n') {
+                        tokens.add(new Token(Type.ERROR, buffer));
+                        setStart();
+                        analyzed = false;
+                    } else if (character == '\\') {
+                        curState = State.STRING_LIT_SYM;
+                        analyzed = true;
+                    } else {
+                        curState = State.STRING_LIT_BODY;
+                        analyzed = true;
+                    }
+
+                }
+                break;
+
+                case STRING_LIT_SYM: {
+                    if (character == 'n' || character == 't' || character == '\\' || character == '\'' || character == '\"') {
+                        curState = State.STRING_LIT_BODY;
+                        analyzed = true;
+                    }
+                    else {
+                        curState = State.ERR_COMM;
+                        analyzed = true;
+                    }
+                }
+                break;
+
+                case STRING_LIT_BODY: {
+                    if (character == '\r' || character == '\n') {
+                        tokens.add(new Token(Type.ERROR, buffer));
+                        setStart();
+                        analyzed = false;
+                    } else if (character == '\\') {
+                        curState = State.STRING_LIT_SYM;
+                        analyzed = true;
+                    } else if (character == '\"') {
+                        curState = State.LITERAL;
+                        analyzed = true;
+                    } else
+                        analyzed = true;
+                }
+                break;
+
+                case LITERAL: {
+                    tokens.add(new Token(Type.LITERAL, buffer));
                     setStart();
-                    analyzeChar(character);
-                    return;
+                    analyzed = false;
                 }
+                break;
+
+                case MINUS: {
+                    if (character == '=' || character == '-' || character == '>') {
+                        curState = State.OPERATOR;
+                        analyzed = true;
+                    }
+                    else if (character >= '1' && character <= '9') {
+                        curState = State.NUMBER;
+                        analyzed = true;
+                    } else if (character == '0') {
+                        curState = State.ZERO;
+                        analyzed = true;
+                    } else {
+                        tokens.add(new Token(Type.OPERATOR, buffer));
+                        setStart();
+                        analyzed = false;
+                    }
+                }
+                break;
+
+                case ZERO: {
+                    if (character == '.') {
+                        curState = State.NUMBER_D;
+                    }
+                    else if (character == 'x' || character == 'X') {
+                        curState = State.HEX;
+                    }
+                    else if (character >= '0' && character <= '9') {
+                        curState = State.NUMBER;
+                    }
+                    else {
+                        checkNumber(character);
+                    }
+                    analyzed = true;
+                }
+                break;
+
+                case HEX: {
+                    if ((character >= '0' && character <= '9') || (character >= 'A' && character <= 'F') || (character >= 'a' && character <= 'f'))
+                        curState = State.HEX_N;
+                    else {
+                        curState = State.ERROR;
+                    }
+                    analyzed = true;
+                }
+                break;
+
+                case HEX_N: {
+                    if (!((character >= '0' && character <= '9') || (character >= 'A' && character <= 'F') || (character >= 'a' && character <= 'f'))) {
+                        checkNumber(character);
+                        analyzed = true;
+                    }
+                }
+                break;
+
+                case ERROR: {
+                    if (Patterns.isPunctuation(character)) {
+                        tokens.add(new Token(Type.ERROR, buffer));
+                        setStart();
+                        analyzed = false;
+                    }
+                    else
+                        analyzed = true;
+                }
+                break;
+
+                case NUMBER_D: {
+                    if (character >= '0' && character <= '9')
+                        curState = State.NUMBER_DOT;
+                    else {
+                        curState = State.DOT_ERR;
+                    }
+                    analyzed = true;
+                }
+                break;
+
+                case NUMBER_DOT: {
+                    if (!(character >= '0' && character <= '9')) {
+                        checkNumber(character);
+                        analyzed = false;
+                    }
+                    else
+                        analyzed = true;
+                }
+                break;
+
+                case DOT_ERR: {
+                    if (character == ' ' || character == '\n') {
+                        tokens.add(new Token(Type.ERROR, buffer));
+                        setStart();
+                        analyzed = false;
+                    } else
+                        analyzed = true;
+                }
+                break;
+
+                case NUMBER: {
+                    if (character == '.') {
+                        curState = State.NUMBER_D;
+                        analyzed = true;
+                    }
+                    else if (!(character >= '0' && character <= '9')) {
+                        checkNumber(character);
+                        analyzed = false;
+                    } else
+                        analyzed = true;
+                }
+                break;
+
+                case DOT: {
+                    if (character >= '0' && character <= '9') {
+                        curState = State.NUMBER_DOT;
+                        analyzed = true;
+                    }
+                    else {
+                        tokens.add(new Token(Type.OPERATOR, buffer));
+                        setStart();
+                        analyzed = false;
+                    }
+                }
+                break;
+
+                default: {
+                    System.out.println("Oops");
+                }
+                break;
             }
-            break;
-
-            case CHAR_LIT:{
-                if(character == '\\') {
-                    curState = State.CHAR_T;
-                }
-                else if (character == '\n'||character == '\''){
-                    tokens.add(new Token(Type.ERROR, buffer));
-                    setStart();
-                    analyzeChar(character);
-                    return;
-                }
-                else {
-                    curState = State.END_CHAR_LIT;
-                }
-
-            }
-            break;
-
-            case CHAR_T:{
-                if(character == 'n' || character == 't' || character == '\\'|| character == '\''||character == '\"') {
-                    curState = State.END_CHAR_LIT;
-                }
-                else{
-                    curState = State.ERR_COMM;
-                }
-            }
-            break;
-
-            case END_CHAR_LIT:{
-                if(character == '\'') {
-                    curState = State.LITERAL;
-                }
-                else {
-                    curState = State.ERR_COMM;
-                }
-            }
-            break;
-
-            case ERR_COMM:{
-                if (character == '\n') {
-                    tokens.add(new Token(Type.ERROR, buffer));
-                    setStart();
-                    analyzeChar(character);
-                    return;
-                }
-            }
-
-            case STRING_LIT:{
-                if (character == '\n') {
-                    tokens.add(new Token(Type.ERROR, buffer));
-                    setStart();
-                    analyzeChar(character);
-                    return;
-                }
-                else if(character == '\\'){
-                    curState = State.STRING_LIT_SYM;
-                }
-                else{
-                    curState = State.STRING_LIT_BODY;
-                }
-
-            }
-            break;
-
-            case STRING_LIT_SYM:{
-                if (character == 'n' || character == 't' || character == '\\'|| character == '\''||character == '\"')
-                    curState = State.STRING_LIT_BODY;
-                else{
-                    curState = State.ERR_COMM;
-                }
-            }
-            break;
-
-            case STRING_LIT_BODY:{
-                if(character == '\r'||character == '\n') {
-                    tokens.add(new Token(Type.ERROR, buffer));
-                    setStart();
-                    analyzeChar(character);
-                    return;
-                }
-                else if(character == '\\'){
-                    curState = State.STRING_LIT_SYM;
-                }
-                else if(character == '\"'){
-                    curState = State.LITERAL;
-                }
-            }
-            break;
-
-            case LITERAL:{
-                tokens.add(new Token(Type.LITERAL, buffer));
-                setStart();
-                analyzeChar(character);
-                return;
-            }
-
-            case MINUS:{
-                if(character == '=' || character == '-' || character == '>')
-                    curState = State.OPERATOR;
-                else if (character >= '1' && character <= '9'){
-                    curState = State.NUMBER;
-                }
-                else if (character == '0'){
-                    curState = State.ZERO;
-                }
-                else{
-                    tokens.add(new Token(Type.OPERATOR, buffer));
-                    setStart();
-                    analyzeChar(character);
-                    return;
-                }
-            }
-            break;
-
-            case ZERO:{
-                if(character == '.')
-                    curState = State.NUMBER_D;
-                else if(character == 'x' || character == 'X')
-                    curState = State.HEX;
-                else if(character >= '0' && character <= '9')
-                    curState = State.NUMBER;
-                else {
-                    checkNumber(character);
-                    return;
-                }
-            }
-            break;
-
-            case HEX:{
-                if((character >= '0' && character <= '9')||(character >= 'A' && character <= 'F')||(character >= 'a' && character <= 'f'))
-                    curState = State.HEX_N;
-                else{
-                    curState = State.ERROR;
-                    return;
-                }
-            }
-            break;
-
-            case HEX_N:{
-                if(!((character >= '0' && character <= '9')||(character >= 'A' && character <= 'F')||(character >= 'a' && character <= 'f'))){
-                    checkNumber(character);
-                    return;
-                }
-            }
-            break;
-
-            case ERROR:{
-                if(Patterns.isPunctuation(character)) {
-                    tokens.add(new Token(Type.ERROR, buffer));
-                    setStart();
-                    analyzeChar(character);
-                    return;
-                }
-            }
-            break;
-
-            case NUMBER_D:{
-                if(character >= '0' && character <= '9')
-                    curState = State.NUMBER_DOT;
-                else {
-                    curState = State.DOT_ERR;
-                }
-            }
-            break;
-
-            case NUMBER_DOT:{
-                if(!(character >= '0' && character <= '9')) {
-                    checkNumber(character);
-                    return;
-                }
-            }
-            break;
-
-            case DOT_ERR:{
-                if(character == ' ' || character == '\n'){
-                    tokens.add(new Token(Type.ERROR, buffer));
-                    setStart();
-                    analyzeChar(character);
-                }
-            }
-            break;
-
-            case NUMBER:{
-                if(character == '.')
-                    curState = State.NUMBER_D;
-                else if(!(character >= '0' && character <= '9')){
-                    checkNumber(character);
-                    return;
-                }
-            }
-            break;
-
-            case DOT:{
-                if(character >= '0' && character <= '9')
-                    curState = State.NUMBER_DOT;
-                else {
-                    tokens.add(new Token(Type.OPERATOR, buffer));
-                    setStart();
-                    analyzeChar(character);
-                    return;
-                }
-            }
-            break;
-
-            default:
-            {
-                System.out.println("Oops");
-            }
-            break;
         }
 
         if(curState != State.START) {
@@ -388,7 +419,6 @@ public class Lexer {
         if(Patterns.isPunctuation(character)) {
             tokens.add(new Token(Type.NUMBER, buffer));
             setStart();
-            analyzeChar(character);
         }
         else {
             curState = State.ERROR;
